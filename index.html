@@ -94,34 +94,72 @@
     <button id="copy-btn" class="btn btn-secondary">Kodu Panoya Kopyala</button>
 
     <div id="status" class="status"></div>
+    <textarea id="code-box" readonly style="display:none;width:100%;margin-top:12px;height:90px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:8px;font-size:11px;word-break:break-all;"></textarea>
   </div>
 
   <script>
     (function() {
+      var statusEl = document.getElementById('status');
+      var openBtn = document.getElementById('open-btn');
+      var copyBtn = document.getElementById('copy-btn');
+      var box = document.getElementById('code-box');
+
+      function fail(msg) {
+        statusEl.innerText = msg;
+        statusEl.style.color = '#ef4444';
+        openBtn.style.display = 'none';
+        copyBtn.style.display = 'none';
+      }
+
       var hash = window.location.hash.substring(1);
-      if (!hash) {
-        document.getElementById('status').innerText = 'Geçersiz veya boş yapılandırma bağlantısı.';
-        document.getElementById('status').style.color = '#ef4444';
+      var config = '';
+      try { config = decodeURIComponent(hash).trim(); } catch (e) { config = ''; }
+
+      // Yalnizca gecerli SNI Tunnel kodu (v2rc:// + base64url) kabul edilir
+      if (!/^v2rc:\/\/[A-Za-z0-9_-]{40,}$/.test(config)) {
+        fail('Geçersiz veya boş yapılandırma bağlantısı. Lütfen Telegram botundaki butonu kullanın.');
         return;
       }
 
-      var config = decodeURIComponent(hash);
       var targetUrl = 'snitunnel://add/' + config;
-
-      var openBtn = document.getElementById('open-btn');
       openBtn.href = targetUrl;
+      box.value = config;
 
-      // Copy fallback
-      document.getElementById('copy-btn').addEventListener('click', function() {
-        navigator.clipboard.writeText(config).then(function() {
-          document.getElementById('status').innerText = '✅ Kod panoya kopyalandı!';
-        });
+      function copied() {
+        statusEl.style.color = '#22c55e';
+        statusEl.innerText = '✅ Kod panoya kopyalandı! SNI Tunnel uygulamasını açın.';
+      }
+      function manualCopy() {
+        box.style.display = 'block';
+        box.focus();
+        box.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        if (ok) { copied(); }
+        else {
+          statusEl.style.color = '#facc15';
+          statusEl.innerText = 'Otomatik kopyalanamadı: aşağıdaki koda uzun basıp "Kopyala" seçin.';
+        }
+      }
+
+      copyBtn.addEventListener('click', function() {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(config).then(copied, manualCopy);
+        } else {
+          manualCopy();
+        }
       });
 
-      // Try automatic redirect
+      // Otomatik yonlendirme; uygulama acilmazsa sayfa yerinde kalir
       setTimeout(function() {
         window.location.href = targetUrl;
       }, 250);
+      setTimeout(function() {
+        if (!document.hidden) {
+          statusEl.style.color = '#94a3b8';
+          statusEl.innerText = 'Uygulama açılmadıysa "Uygulamada Aç" butonuna basın veya kodu kopyalayın.';
+        }
+      }, 2500);
     })();
   </script>
 </body>
